@@ -1,26 +1,47 @@
 import React, { useState } from 'react';
 import {
+  HazardAlert,
+  HazardType,
+  HazardStatus
+} from '../types';
+import { WaterLevelLiveBanner } from './WaterLevelLiveBanner';
+import {
   Search,
   X,
-  Radio,
-  PlusCircle,
-  PhoneCall,
-  MapPin,
-  AlertCircle,
-  Waves,
   Flame,
+  Waves,
   Zap,
+  LightbulbOff,
   Droplets,
+  AlertOctagon,
+  MapPin,
+  Clock,
   AlertTriangle,
-  HelpCircle,
-  ShieldAlert
+  PhoneCall,
+  ShieldCheck,
+  Building2,
+  Camera
 } from 'lucide-react';
-import { HazardAlert, HazardType, HazardStatus } from '../types';
+
+type DisplayHazardType = 'fire' | 'flood' | 'power' | 'streetlight' | 'water' | 'road' | 'other';
+
+const normalizeHazardType = (type: HazardType): DisplayHazardType => {
+  switch (type) {
+    case 'power_outage':
+      return 'power';
+    case 'road_obstruction':
+      return 'road';
+    case 'water_outage':
+      return 'water';
+    default:
+      return type;
+  }
+};
 
 interface SidebarProps {
   alerts: HazardAlert[];
   selectedAlert: HazardAlert | null;
-  onSelectAlert: (alert: HazardAlert | null) => void;
+  onSelectAlert: (alert: HazardAlert) => void;
   onToggleAlertStatus: (id: string) => void;
   onOpenReportModal: () => void;
   onOpenHotlinesModal: () => void;
@@ -34,24 +55,6 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-const TYPE_ICONS: Record<string, React.ReactNode> = {
-  flood: <Waves className="w-4 h-4 text-blue-400" />,
-  fire: <Flame className="w-4 h-4 text-rose-400" />,
-  power_outage: <Zap className="w-4 h-4 text-amber-400" />,
-  water_outage: <Droplets className="w-4 h-4 text-cyan-400" />,
-  road_obstruction: <AlertTriangle className="w-4 h-4 text-orange-400" />,
-  other: <HelpCircle className="w-4 h-4 text-purple-400" />,
-};
-
-const FILTER_BUTTONS: { type: HazardType | 'all'; label: string }[] = [
-  { type: 'all', label: 'All Hazards' },
-  { type: 'flood', label: 'Flood' },
-  { type: 'fire', label: 'Fire' },
-  { type: 'road_obstruction', label: 'Road' },
-  { type: 'power_outage', label: 'Power' },
-  { type: 'water_outage', label: 'Water' },
-];
-
 export const Sidebar: React.FC<SidebarProps> = ({
   alerts,
   selectedAlert,
@@ -63,153 +66,291 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setActiveFilterType,
   activeFilterStatus,
   setActiveFilterStatus,
-  liveUrl,
-  onOpenLiveModal,
-  onRemoveLive,
+  liveUrl = '',
+  onOpenLiveModal = () => {},
+  onRemoveLive = () => {},
   onClose,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const activeCount = alerts.filter((a) => a.status === 'active').length;
-  const resolvedCount = alerts.filter((a) => a.status === 'resolved').length;
-
+  // Filter alerts by search and active filters
   const filteredAlerts = alerts.filter((alert) => {
-    if (activeFilterStatus !== 'all' && alert.status !== activeFilterStatus) return false;
-    if (activeFilterType !== 'all' && alert.type !== activeFilterType) return false;
-    if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase();
-      const matchTitle = alert.title.toLowerCase().includes(q);
-      const matchSitio = alert.sitio.toLowerCase().includes(q);
-      const matchStreet = alert.streetName.toLowerCase().includes(q);
-      const matchDesc = alert.description.toLowerCase().includes(q);
-      return matchTitle || matchSitio || matchStreet || matchDesc;
-    }
-    return true;
+    const matchesSearch =
+      searchQuery === '' ||
+      alert.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      alert.streetName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      alert.sitio.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      alert.description.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesType =
+      activeFilterType === 'all' ||
+      normalizeHazardType(alert.type) === normalizeHazardType(activeFilterType);
+
+    const matchesStatus =
+      activeFilterStatus === 'all' || alert.status === activeFilterStatus;
+
+    return matchesSearch && matchesType && matchesStatus;
   });
 
+  const activeCount = alerts.filter((a) => a.status === 'active').length;
+  const monitoringCount = alerts.filter((a) => a.status === 'monitoring').length;
+  const resolvedCount = alerts.filter((a) => a.status === 'resolved').length;
+  const isTypeFilterActive = (type: DisplayHazardType) =>
+    activeFilterType !== 'all' && normalizeHazardType(activeFilterType) === type;
+
+  const getTypeIcon = (type: HazardType) => {
+    switch (normalizeHazardType(type)) {
+      case 'fire':
+        return <Flame className="w-3.5 h-3.5 text-red-500" />;
+      case 'flood':
+        return <Waves className="w-3.5 h-3.5 text-blue-500" />;
+      case 'power':
+        return <Zap className="w-3.5 h-3.5 text-amber-500" />;
+      case 'streetlight':
+        return <LightbulbOff className="w-3.5 h-3.5 text-indigo-600" />;
+      case 'water':
+        return <Droplets className="w-3.5 h-3.5 text-cyan-500" />;
+      case 'road':
+        return <AlertOctagon className="w-3.5 h-3.5 text-orange-500" />;
+      default:
+        return <AlertTriangle className="w-3.5 h-3.5 text-violet-500" />;
+    }
+  };
+
+  const getTypeBg = (type: HazardType) => {
+    switch (normalizeHazardType(type)) {
+      case 'fire':
+        return 'bg-red-50 text-red-700 border-red-200';
+      case 'flood':
+        return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'power':
+        return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'streetlight':
+        return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+      case 'water':
+        return 'bg-cyan-50 text-cyan-700 border-cyan-200';
+      case 'road':
+        return 'bg-orange-50 text-orange-700 border-orange-200';
+      default:
+        return 'bg-violet-50 text-violet-700 border-violet-200';
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full bg-slate-900 text-slate-100 border-r border-slate-800 shadow-2xl overflow-hidden select-none">
-      {/* Header & Search */}
-      <div className="p-4 border-b border-slate-800 bg-slate-900/90 backdrop-blur-md">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
-            </span>
-            <h2 className="text-sm font-bold tracking-wide uppercase text-slate-200">
-              Live Incident Feed
+    <aside className="w-full lg:w-96 bg-white border-r border-slate-200 flex flex-col h-full min-h-0 overflow-hidden shadow-xs shrink-0">
+      {/* Top Header & Search */}
+      <div className="p-4 border-b border-slate-100 space-y-3 bg-slate-50">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <span>Incident Feeds</span>
+              <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded bg-slate-900 text-white">
+                {filteredAlerts.length}
+              </span>
             </h2>
+            <p className="text-[10px] text-slate-500 font-medium">Verified reports in Barangay San Jose</p>
           </div>
           {onClose && (
             <button
+              type="button"
               onClick={onClose}
-              className="lg:hidden p-1.5 text-slate-400 hover:text-white rounded-md hover:bg-slate-800"
-              aria-label="Close sidebar"
+              className="lg:hidden inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+              aria-label="Close incident feeds"
+              title="Close incident feeds"
             >
-              <X className="w-5 h-5" />
+              <X className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
 
-        {/* Live Stream Banner if configured */}
-        {liveUrl && (
-          <div className="mb-3 p-2.5 rounded-lg bg-red-950/40 border border-red-800/60 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Radio className="w-4 h-4 text-red-400 animate-pulse" />
-              <span className="text-xs font-semibold text-red-200">Active Live Stream</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={onOpenLiveModal}
-                className="text-[11px] px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white font-medium"
-              >
-                Watch
-              </button>
-              {onRemoveLive && (
-                <button
-                  onClick={onRemoveLive}
-                  className="p-1 text-red-400 hover:text-red-200"
-                  title="Remove stream link"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Search input */}
-        <div className="relative mb-3">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
+            id="input-hazard-search"
             type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search sitio, road, or hazard..."
-            className="w-full pl-9 pr-3 py-1.5 bg-slate-800/80 border border-slate-700/60 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search street, sitio, or incident..."
+            className="w-full pl-8 pr-4 py-1.5 bg-white border border-slate-200 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-all"
           />
-          {searchTerm && (
+          {searchQuery && (
             <button
-              onClick={() => setSearchTerm('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
             >
-              <X className="w-3.5 h-3.5" />
+              ✕
             </button>
           )}
         </div>
 
-        {/* Status Filters */}
-        <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-800/60 rounded-lg border border-slate-700/50 mb-3 text-xs">
+        {/* Hazard Category Filter Chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 custom-scrollbar text-xs">
           <button
-            onClick={() => setActiveFilterStatus(activeFilterStatus === 'active' ? 'all' : 'active')}
-            className={`py-1 rounded-md font-medium transition-all ${
-              activeFilterStatus === 'active'
-                ? 'bg-rose-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
+            id="filter-all"
+            onClick={() => setActiveFilterType('all')}
+            className={`px-2.5 py-1 rounded-md font-semibold text-[11px] whitespace-nowrap transition-colors ${
+              activeFilterType === 'all'
+                ? 'bg-slate-900 text-white'
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
             }`}
           >
-            Active ({activeCount})
+            All
           </button>
           <button
-            onClick={() => setActiveFilterStatus(activeFilterStatus === 'resolved' ? 'all' : 'resolved')}
-            className={`py-1 rounded-md font-medium transition-all ${
-              activeFilterStatus === 'resolved'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
+            id="filter-fire"
+            onClick={() => setActiveFilterType('fire')}
+            className={`px-2 py-1 rounded-md font-semibold text-[11px] whitespace-nowrap flex items-center gap-1 transition-colors ${
+              isTypeFilterActive('fire')
+                ? 'bg-red-600 text-white'
+                : 'bg-white text-slate-700 border border-slate-200 hover:bg-red-50'
             }`}
           >
-            Resolved ({resolvedCount})
+            <Flame className="w-3 h-3 text-red-500" />
+            <span>Fire</span>
+          </button>
+          <button
+            id="filter-flood"
+            onClick={() => setActiveFilterType('flood')}
+            className={`px-2 py-1 rounded-md font-semibold text-[11px] whitespace-nowrap flex items-center gap-1 transition-colors ${
+              isTypeFilterActive('flood')
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-slate-700 border border-slate-200 hover:bg-blue-50'
+            }`}
+          >
+            <Waves className="w-3 h-3 text-blue-500" />
+            <span>Flood</span>
+          </button>
+          <button
+            id="filter-power"
+            onClick={() => setActiveFilterType('power')}
+            className={`px-2 py-1 rounded-md font-semibold text-[11px] whitespace-nowrap flex items-center gap-1 transition-colors ${
+              isTypeFilterActive('power')
+                ? 'bg-amber-600 text-white'
+                : 'bg-white text-slate-700 border border-slate-200 hover:bg-amber-50'
+            }`}
+          >
+            <Zap className="w-3 h-3 text-amber-500" />
+            <span>No Power</span>
+          </button>
+          <button
+            id="filter-streetlight"
+            onClick={() => setActiveFilterType('streetlight')}
+            className={`px-2 py-1 rounded-md font-semibold text-[11px] whitespace-nowrap flex items-center gap-1 transition-colors ${
+              isTypeFilterActive('streetlight')
+                ? 'bg-indigo-600 text-white'
+                : 'bg-white text-slate-700 border border-slate-200 hover:bg-indigo-50'
+            }`}
+          >
+            <LightbulbOff className="w-3 h-3 text-indigo-600" />
+            <span>Streetlight</span>
+          </button>
+          <button
+            id="filter-water"
+            onClick={() => setActiveFilterType('water')}
+            className={`px-2 py-1 rounded-md font-semibold text-[11px] whitespace-nowrap flex items-center gap-1 transition-colors ${
+              isTypeFilterActive('water')
+                ? 'bg-cyan-600 text-white'
+                : 'bg-white text-slate-700 border border-slate-200 hover:bg-cyan-50'
+            }`}
+          >
+            <Droplets className="w-3 h-3 text-cyan-500" />
+            <span>Water</span>
+          </button>
+          <button
+            id="filter-road"
+            onClick={() => setActiveFilterType('road')}
+            className={`px-2 py-1 rounded-md font-semibold text-[11px] whitespace-nowrap flex items-center gap-1 transition-colors ${
+              isTypeFilterActive('road')
+                ? 'bg-orange-600 text-white'
+                : 'bg-white text-slate-700 border border-slate-200 hover:bg-orange-50'
+            }`}
+          >
+            <AlertOctagon className="w-3 h-3 text-orange-500" />
+            <span>Road</span>
           </button>
         </div>
 
-        {/* Hazard Type Scroll Filter */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-          {FILTER_BUTTONS.map((btn) => (
+        {/* Status Filter Sub-bar */}
+        <div className="flex items-center justify-between text-[11px] pt-1 -mb-3 border-t border-slate-200/60">
+          <span className="text-slate-400 font-semibold uppercase text-[9px] tracking-wider">Status:</span>
+          <div className="flex items-center gap-1">
             <button
-              key={btn.type}
-              onClick={() => setActiveFilterType(btn.type)}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap transition-colors ${
-                activeFilterType === btn.type
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700/60'
+              onClick={() => setActiveFilterStatus('all')}
+              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                activeFilterStatus === 'all'
+                  ? 'bg-slate-200 text-slate-800'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              {btn.label}
+              All ({alerts.length})
             </button>
-          ))}
+            <button
+              onClick={() => setActiveFilterStatus('active')}
+              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                activeFilterStatus === 'active'
+                  ? 'bg-red-100 text-red-800'
+                  : 'text-slate-500 hover:text-red-700'
+              }`}
+            >
+              Active ({activeCount})
+            </button>
+            <button
+              onClick={() => setActiveFilterStatus('monitoring')}
+              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                activeFilterStatus === 'monitoring'
+                  ? 'bg-amber-100 text-amber-800'
+                  : 'text-slate-500 hover:text-amber-700'
+              }`}
+            >
+              Mon ({monitoringCount})
+            </button>
+            <button
+              onClick={() => setActiveFilterStatus('resolved')}
+              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                activeFilterStatus === 'resolved'
+                  ? 'bg-slate-200 text-slate-700'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Done ({resolvedCount})
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Incident List Feed */}
-      <div className="flex-1 overflow-y-auto divide-y divide-slate-800/60 p-2 space-y-1 custom-scrollbar">
+      {/* Bayan ng Montalban FB Live Water Level Monitoring Banner (Only renders when liveUrl is present) */}
+      <WaterLevelLiveBanner
+        liveUrl={liveUrl}
+        onOpenEditModal={onOpenLiveModal}
+        onRemoveLive={onRemoveLive}
+      />
+
+      {/* Alert Cards List */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-2.5 custom-scrollbar bg-slate-50/30">
         {filteredAlerts.length === 0 ? (
-          <div className="p-8 text-center text-slate-500">
-            <ShieldAlert className="w-8 h-8 mx-auto mb-2 text-slate-600 opacity-60" />
-            <p className="text-xs font-semibold text-slate-400">No reports found</p>
-            <p className="text-[11px] mt-1 text-slate-500">
-              {searchTerm ? 'Try clearing search filters' : 'All clear in this category'}
-            </p>
+          <div className="py-12 text-center space-y-3">
+            <div className="w-10 h-10 rounded-md bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+              <ShieldCheck className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-800">No matching incidents</p>
+              <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">
+                No reports match your current filter in Barangay San Jose.
+              </p>
+            </div>
+            {(searchQuery || activeFilterType !== 'all' || activeFilterStatus !== 'all') && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setActiveFilterType('all');
+                  setActiveFilterStatus('all');
+                }}
+                className="text-[11px] text-blue-600 font-semibold underline hover:text-blue-700"
+              >
+                Clear all filters
+              </button>
+            )}
           </div>
         ) : (
           filteredAlerts.map((alert) => {
@@ -219,61 +360,127 @@ export const Sidebar: React.FC<SidebarProps> = ({
             return (
               <div
                 key={alert.id}
-                onClick={() => onSelectAlert(isSelected ? null : alert)}
-                className={`p-3 rounded-xl cursor-pointer transition-all duration-150 border text-left ${
+                id={`alert-card-${alert.id}`}
+                onClick={() => onSelectAlert(alert)}
+                className={`group relative p-3 rounded-lg border transition-all cursor-pointer ${
                   isSelected
-                    ? 'bg-slate-800/95 border-blue-500 shadow-md ring-1 ring-blue-500/50'
-                    : 'bg-slate-800/30 border-slate-800 hover:bg-slate-800/70 hover:border-slate-700'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-1 ring-slate-900'
+                    : isResolved
+                    ? 'bg-slate-50 border-slate-200/80 opacity-70 hover:opacity-100 hover:bg-white hover:border-slate-300'
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-xs'
                 }`}
               >
+                {/* Top Row: Icon + Type + Status */}
                 <div className="flex items-start justify-between gap-2 mb-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-slate-900 border border-slate-700/50 shrink-0">
-                      {TYPE_ICONS[alert.type] || <AlertCircle className="w-4 h-4 text-slate-400" />}
-                    </span>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                        isResolved
-                          ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/60'
-                          : alert.severity === 'critical'
-                          ? 'bg-rose-950/80 text-rose-300 border border-rose-800/60'
-                          : alert.severity === 'high'
-                          ? 'bg-orange-950/80 text-orange-300 border border-orange-800/60'
-                          : 'bg-amber-950/80 text-amber-300 border border-amber-800/60'
+                    <div
+                      className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 border ${
+                        isSelected ? 'bg-slate-800 border-slate-700' : getTypeBg(alert.type)
                       }`}
                     >
-                      {alert.severity}
-                    </span>
+                      {getTypeIcon(alert.type)}
+                    </div>
+                    <div>
+                      <span
+                        className={`text-[9px] font-bold uppercase tracking-widest ${
+                          isSelected ? 'text-slate-400' : 'text-slate-500'
+                        }`}
+                      >
+                        {normalizeHazardType(alert.type) === 'streetlight'
+                          ? 'STREETLIGHT'
+                          : normalizeHazardType(alert.type).replace('_', ' ').toUpperCase()}
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
-                    {alert.timeReported}
-                  </span>
+
+                  <div className="flex items-center gap-1">
+                    {alert.severity === 'critical' && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-red-500 text-white">
+                        Critical
+                      </span>
+                    )}
+                    {alert.severity === 'high' && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-orange-500 text-white">
+                        High
+                      </span>
+                    )}
+                    {isResolved ? (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-slate-200 text-slate-700">
+                        Resolved
+                      </span>
+                    ) : alert.status === 'monitoring' ? (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-100 text-amber-800">
+                        Monitoring
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-red-100 text-red-700">
+                        Active
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <h3 className="text-xs font-semibold text-slate-100 line-clamp-1 mb-1">
+                {/* Title */}
+                <h3
+                  className={`text-xs font-bold leading-snug line-clamp-2 mb-1 ${
+                    isSelected ? 'text-white' : 'text-slate-900'
+                  }`}
+                >
                   {alert.title}
                 </h3>
-                <p className="text-[11px] text-slate-400 line-clamp-2 mb-2 leading-relaxed">
-                  {alert.description}
-                </p>
 
-                <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-800/50">
-                  <div className="flex items-center gap-1 text-slate-300 font-medium">
-                    <MapPin className="w-3 h-3 text-blue-400 shrink-0" />
-                    <span className="truncate max-w-[150px]">{alert.sitio}</span>
+                {/* Photo Proof Thumbnail if present */}
+                {alert.photoUrl && (
+                  <div className="mb-2 rounded-md overflow-hidden border border-slate-200/60 relative h-24 bg-slate-100">
+                    <img
+                      src={alert.photoUrl}
+                      alt={alert.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                    />
+                    <div className="absolute top-1 right-1 bg-slate-900/75 backdrop-blur-xs text-white text-[9px] px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                      <Camera className="w-2.5 h-2.5 text-emerald-400" />
+                      <span>Proof Attached</span>
+                    </div>
                   </div>
+                )}
+
+                {/* Location & Sitio */}
+                <div
+                  className={`flex items-center gap-1 text-[11px] mb-1 ${
+                    isSelected ? 'text-slate-300' : 'text-slate-600'
+                  }`}
+                >
+                  <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                  <span className="truncate font-medium">{alert.streetName}</span>
+                </div>
+
+
+                {/* Footer info: time & action */}
+                <div
+                  className={`flex items-center justify-between pt-2 border-t text-[11px] ${
+                    isSelected ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-400'
+                  }`}
+                >
+                  <div className="flex items-center gap-1 font-mono text-[10px]">
+                    <Clock className="w-3 h-3" />
+                    <span>{alert.timeReported}</span>
+                  </div>
+
                   <button
+                    id={`btn-card-toggle-${alert.id}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       onToggleAlertStatus(alert.id);
                     }}
-                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
-                      isResolved
-                        ? 'bg-slate-700 hover:bg-slate-600 text-slate-200'
-                        : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-colors ${
+                      isSelected
+                        ? 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                        : isResolved
+                        ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
                     }`}
                   >
-                    {isResolved ? 'Re-open' : 'Mark Resolved'}
+                    {isResolved ? 'Reopen' : 'Resolve'}
                   </button>
                 </div>
               </div>
@@ -282,23 +489,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Bottom Quick Actions */}
-      <div className="p-3 border-t border-slate-800 bg-slate-900/90 grid grid-cols-2 gap-2">
-        <button
-          onClick={onOpenReportModal}
-          className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md active:scale-95 transition-all"
-        >
-          <PlusCircle className="w-3.5 h-3.5" />
-          <span>Report Hazard</span>
-        </button>
-        <button
-          onClick={onOpenHotlinesModal}
-          className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold active:scale-95 transition-all"
-        >
-          <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Hotlines</span>
-        </button>
+      {/* Bottom Barangay Quick Reference Card */}
+      <div className="sticky bottom-0 z-10 p-3.5 border-t border-slate-200 bg-slate-50 space-y-2 shrink-0">
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px] uppercase tracking-wider">
+            <Building2 className="w-3.5 h-3.5 text-slate-500" />
+            <span>Rodriguez OpCen</span>
+          </div>
+          <button
+            onClick={onOpenHotlinesModal}
+            className="text-[10px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-0.5 uppercase tracking-wider"
+          >
+            <PhoneCall className="w-3 h-3" />
+            <span>Hotlines</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 text-[11px]">
+          <div className="bg-white p-2 rounded-md border border-slate-200">
+            <span className="text-slate-400 block text-[9px] uppercase tracking-wider font-semibold">Flood Watch</span>
+            <span className="font-bold text-blue-600">Yellow (Alert 1)</span>
+          </div>
+          <div className="bg-white p-2 rounded-md border border-slate-200">
+            <span className="text-slate-400 block text-[9px] uppercase tracking-wider font-semibold">Streetlights</span>
+            <span className="font-bold text-indigo-600">Active Survey</span>
+          </div>
+        </div>
       </div>
-    </div>
+    </aside>
   );
 };

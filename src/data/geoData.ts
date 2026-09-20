@@ -1,4 +1,4 @@
-import { HazardAlert } from '../types';
+import { EmergencyContact, HazardAlert } from '../types';
 
 export const SAN_JOSE_CENTER: [number, number] = [14.7425, 121.131];
 
@@ -115,6 +115,52 @@ export const INITIAL_HAZARDS: HazardAlert[] = [
     reportedBy: 'Eng. Dela Cruz',
     updatesCount: 3,
     lastUpdated: '1 hour ago',
+  },
+];
+
+/** Emergency contacts used by the hotlines directory. */
+export const EMERGENCY_CONTACTS: EmergencyContact[] = [
+  {
+    agency: 'Barangay San Jose Hall & Operations Center',
+    label: 'Brgy. San Jose OpCen',
+    numbers: ['(02) 8997-1823', '0917-890-7265'],
+    type: 'barangay',
+    icon: 'ShieldAlert',
+  },
+  {
+    agency: 'Rodriguez (Montalban) MDRRMO Rescue 911',
+    label: 'MDRRMO Rescue',
+    numbers: ['(02) 8997-1800', '0920-955-7372', '911'],
+    type: 'rescue',
+    icon: 'LifeBuoy',
+  },
+  {
+    agency: 'Bureau of Fire Protection (BFP) Rodriguez Fire Station',
+    label: 'BFP Fire Dept',
+    numbers: ['(02) 8948-2211', '0966-248-1890'],
+    type: 'fire',
+    icon: 'Flame',
+  },
+  {
+    agency: 'Philippine National Police (PNP) Rodriguez Sub-Station',
+    label: 'PNP Rodriguez',
+    numbers: ['(02) 8941-1191', '0998-598-5712'],
+    type: 'police',
+    icon: 'BadgeCheck',
+  },
+  {
+    agency: 'Manila Water Montalban Emergency Desk',
+    label: 'Manila Water',
+    numbers: ['1627', '(02) 7917-4221'],
+    type: 'utility',
+    icon: 'Droplets',
+  },
+  {
+    agency: 'MERALCO Emergency & Outage Dispatch',
+    label: 'Meralco Power',
+    numbers: ['16211', '0920-971-6211'],
+    type: 'utility',
+    icon: 'Zap',
   },
 ];
 

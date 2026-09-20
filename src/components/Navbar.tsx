@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  ShieldAlert,
   MapPin,
   PlusCircle,
   PhoneCall,
@@ -11,7 +10,6 @@ import {
   Zap,
   Waves,
   LightbulbOff,
-  RefreshCw,
   BellRing,
   Building2,
   CheckCircle2,
@@ -93,19 +91,23 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  const activeAlerts = alerts.filter(a => a.status === 'active');
-  const fireCount = activeAlerts.filter(a => a.type === 'fire').length;
-  const floodCount = activeAlerts.filter(a => a.type === 'flood').length;
-  const powerCount = activeAlerts.filter(a => a.type === 'power').length;
-  const streetlightCount = activeAlerts.filter(a => a.type === 'streetlight').length;
-  const waterCount = activeAlerts.filter(a => a.type === 'water').length;
+  const activeAlerts = alerts.filter((alert) => alert.status === 'active');
+  const fireCount = activeAlerts.filter((alert) => alert.type === 'fire').length;
+  const floodCount = activeAlerts.filter((alert) => alert.type === 'flood').length;
+  const powerCount = activeAlerts.filter(
+    (alert) => alert.type === 'power' || alert.type === 'power_outage'
+  ).length;
+  const streetlightCount = activeAlerts.filter((alert) => alert.type === 'streetlight').length;
+  const waterCount = activeAlerts.filter(
+    (alert) => alert.type === 'water' || alert.type === 'water_outage'
+  ).length;
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs shrink-0">
       <div className="max-w-7xl mx-auto px-3 sm:px-6">
         <div className="flex items-center justify-between h-16 gap-2 sm:gap-4">
           {/* Brand & Location Info */}
-          <div className="flex items-center space-x-2 sm:space-x-3 shrink-0 min-w-0">
+          <div className="flex items-center space-x-2.5 sm:space-x-3.5 min-w-0">
             <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center text-white font-bold text-xs shadow-xs shrink-0 tracking-wider">
               HS
             </div>
@@ -115,14 +117,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                   HazardSync
                 </h1>
               </div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold flex items-center gap-1 mt-0.5 whitespace-nowrap">
+              <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold flex items-center gap-1 mt-0.5">
                 <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
                 <span>Rizal</span>
-                {currentTime && (
-                  <span className="sm:hidden text-slate-400 font-normal tracking-normal ml-0.5">
-                    • {currentTime.replace(/:\d{2}\s/, ' ')}
-                  </span>
-                )}
               </p>
             </div>
           </div>
@@ -158,27 +155,33 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
-            {/* Desktop / Tablet Live PST Clock */}
-            <div className="hidden sm:flex order-1 h-8 items-center justify-center px-2.5 bg-slate-50 border border-slate-200/80 rounded-md text-slate-700 font-sans font-semibold text-xs tracking-tight tabular-nums whitespace-nowrap">
-              <span className="text-slate-400 text-[10px] mr-1.5 font-mono uppercase font-bold">PST</span>
+          <div className="flex items-center space-x-2 shrink-0">
+            <div className="hidden sm:flex h-8 items-center justify-center mr-4 sm:mr-5 text-slate-800 font-sans font-semibold text-xs tracking-tight tabular-nums whitespace-nowrap">
               {currentTime || 'PST'}
             </div>
 
-            {/* ●●● options menu (on mobile: switches to right side; on desktop: sits before hotlines) */}
-            <div className="relative shrink-0 order-2 sm:order-2" ref={menuDropdownRef}>
+            {/* ●●● options menu beside Hotlines */}
+            <div className="relative shrink-0" ref={menuDropdownRef}>
               <button
+                id="btn-options-dots"
+                type="button"
                 onClick={() => setIsMenuDropdownOpen((prev) => !prev)}
                 title="Opsyon"
-                className="inline-flex h-8 items-center justify-center px-2.5 rounded-md hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
+                aria-label="Open options menu"
+                aria-haspopup="menu"
+                aria-expanded={isMenuDropdownOpen}
+                className="inline-flex h-8 items-center justify-center px-2 rounded-md hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
               >
-                <span className="text-slate-800 font-black text-[10px] tracking-widest leading-none">
+                <span className="text-black font-black text-[10px] tracking-wider leading-none">
                   ●●●
                 </span>
               </button>
 
               {isMenuDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                <div
+                  role="menu"
+                  className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 divide-y divide-slate-100"
+                >
                   <div className="py-1">
                     <button
                       onClick={() => {
@@ -230,28 +233,35 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <button
               id="btn-emergency-hotlines"
+              type="button"
               onClick={onOpenHotlinesModal}
-              className="hidden sm:inline-flex order-3 h-8 items-center space-x-1.5 px-3 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-md transition-colors"
+              aria-label="Open emergency hotlines"
+              className="hidden sm:inline-flex h-8 items-center space-x-1.5 px-3 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-md transition-colors"
             >
               <PhoneCall className="w-3.5 h-3.5 text-rose-500" />
               <span>Hotlines</span>
             </button>
 
-            {/* Report Button (on mobile: switches to left of Opsyon button; on desktop: sits at the end) */}
             <button
               id="btn-report-hazard"
+              type="button"
               onClick={onOpenReportModal}
-              className="inline-flex order-1 sm:order-4 items-center space-x-1.5 h-8 px-3 sm:px-3.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-md shadow-xs transition-all shrink-0 whitespace-nowrap"
+              aria-label="Report an incident or hazard"
+              className="inline-flex items-center space-x-1.5 h-8 px-3 sm:px-3.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-md shadow-xs transition-all shrink-0 whitespace-nowrap"
             >
               <PlusCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span>Report</span>
             </button>
 
-            {/* Mobile Menu Toggle */}
+            {/* Mobile Menu Toggle (hidden on Android/iPhone portrait view) */}
             <button
               id="btn-mobile-menu"
+              type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="hidden sm:flex lg:hidden portrait:hidden sm:portrait:flex order-5 h-7 w-7 sm:h-8 sm:w-8 p-1 sm:p-2 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 border border-slate-200 shrink-0"
+              aria-label={mobileMenuOpen ? 'Close incident feeds' : 'Open incident feeds'}
+              aria-controls="incident-feed-panel"
+              aria-expanded={mobileMenuOpen}
+              className="hidden sm:flex lg:hidden portrait:hidden sm:portrait:flex h-7 w-7 sm:h-8 sm:w-8 p-1 sm:p-2 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 border border-slate-200 shrink-0"
             >
               {mobileMenuOpen ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <Menu className="w-4 h-4 sm:w-5 sm:h-5" />}
             </button>

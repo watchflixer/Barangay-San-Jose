@@ -44,6 +44,19 @@ interface MapViewerProps {
 }
 
 // Tile Layer URLs
+const normalizeHazardType = (type: HazardAlert['type']) => {
+  switch (type) {
+    case 'power_outage':
+      return 'power';
+    case 'road_obstruction':
+      return 'road';
+    case 'water_outage':
+      return 'water';
+    default:
+      return type;
+  }
+};
+
 const TILE_SERVERS = {
   streets: {
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -447,44 +460,48 @@ export const MapViewer: React.FC<MapViewerProps> = ({
 
     // Filter alerts if filter is active
     const visibleAlerts = alerts.filter((alert) => {
-      const matchType = mapSettings.activeFilterType === 'all' || alert.type === mapSettings.activeFilterType;
+      const matchType =
+        mapSettings.activeFilterType === 'all' ||
+        normalizeHazardType(alert.type) === normalizeHazardType(mapSettings.activeFilterType);
       const matchStatus = mapSettings.activeFilterStatus === 'all' || alert.status === mapSettings.activeFilterStatus;
       return matchType && matchStatus;
     });
 
     visibleAlerts.forEach((alert) => {
+      const hazardType = normalizeHazardType(alert.type);
+
       // Configure icon badge appearance based on hazard type
       let iconSymbol = '⚠️';
       let bgColor = 'bg-amber-500';
       let ringColor = 'bg-amber-400';
       let labelText = 'Warning';
 
-      if (alert.type === 'fire') {
+      if (hazardType === 'fire') {
         iconSymbol = '🔥';
         bgColor = 'bg-red-600';
         ringColor = 'bg-red-500';
         labelText = 'Fire Alert';
-      } else if (alert.type === 'flood') {
+      } else if (hazardType === 'flood') {
         iconSymbol = '🌊';
         bgColor = 'bg-blue-600';
         ringColor = 'bg-blue-400';
         labelText = 'Flood Warning';
-      } else if (alert.type === 'power') {
+      } else if (hazardType === 'power') {
         iconSymbol = '⚡';
         bgColor = 'bg-amber-500';
         ringColor = 'bg-amber-400';
         labelText = 'No Electricity';
-      } else if (alert.type === 'streetlight') {
+      } else if (hazardType === 'streetlight') {
         iconSymbol = '💡';
         bgColor = 'bg-indigo-600';
         ringColor = 'bg-indigo-400';
         labelText = 'No Streetlights';
-      } else if (alert.type === 'water') {
+      } else if (hazardType === 'water') {
         iconSymbol = '🚰';
         bgColor = 'bg-cyan-600';
         ringColor = 'bg-cyan-400';
         labelText = 'Water Interruption';
-      } else if (alert.type === 'road') {
+      } else if (hazardType === 'road') {
         iconSymbol = '🚧';
         bgColor = 'bg-orange-600';
         ringColor = 'bg-orange-400';

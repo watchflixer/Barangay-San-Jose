@@ -26,10 +26,21 @@ export interface HazardAlert {
   severity: HazardSeverity;
   description: string;
   reportedBy?: string;
+  contactNumber?: string;
+  reporterEmail?: string;
+  affectedHouseholds?: string;
   updatesCount?: number;
   lastUpdated?: string;
   photoUrl?: string;
   evacuationCenter?: string;
+}
+
+export interface EmergencyContact {
+  agency: string;
+  label: string;
+  numbers: string[];
+  type: 'rescue' | 'fire' | 'police' | 'barangay' | 'utility';
+  icon: string;
 }
 
 export type TileLayerType = 'streets' | 'light' | 'dark' | 'satellite';

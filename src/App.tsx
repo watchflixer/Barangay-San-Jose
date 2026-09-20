@@ -3,7 +3,6 @@ import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { MapViewer } from './components/MapViewer';
 import { AddHazardModal } from './components/AddHazardModal';
-import { EmergencyHotlinesModal } from './components/EmergencyHotlinesModal';
 import { LiveStreamModal } from './components/LiveStreamModal';
 import { PagasaFloodStatus } from './components/PagasaFloodStatus';
 import { EvacuationCentersModal } from './components/EvacuationCentersModal';
@@ -15,6 +14,12 @@ import { HazardAlert, MapSettings, HazardType, HazardStatus } from './types';
 import { INITIAL_HAZARDS, SAN_JOSE_POLYGON_COORDS } from './data/geoData';
 import { useFloodStatus } from './hooks/useFloodStatus';
 import { classifyFloodLevel, SAN_JOSE_BRIDGE_COORDS, AUTO_FLOOD_ALERT_ID } from './lib/flood';
+
+const EmergencyHotlinesModal = React.lazy(() =>
+  import('./components/EmergencyHotlinesModal').then((module) => ({
+    default: module.EmergencyHotlinesModal,
+  }))
+);
 
 export default function App() {
   const [alerts, setAlerts] = useState<HazardAlert[]>(() => {
@@ -237,6 +242,7 @@ export default function App() {
       <div className="flex-1 flex overflow-hidden relative">
         {/* Left Sidebar (Alerts Feed & GIS Controls) */}
         <div
+          id="incident-feed-panel"
           className={`fixed top-16 bottom-0 left-0 z-20 w-80 sm:w-96 transform transition-transform duration-300 ease-in-out lg:relative lg:inset-y-0 lg:h-full lg:min-h-0 lg:translate-x-0 ${
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
@@ -264,9 +270,12 @@ export default function App() {
           {/* Arrow toggle attached to the outer right edge of the incident feed drawer on mobile portrait */}
           <button
             id="btn-mobile-sidebar-toggle-arrow"
+            type="button"
             onClick={() => setMobileMenuOpen((prev) => !prev)}
             title={mobileMenuOpen ? 'Close incident feeds' : 'Open incident feeds'}
             aria-label={mobileMenuOpen ? 'Close incident feeds' : 'Open incident feeds'}
+            aria-controls="incident-feed-panel"
+            aria-expanded={mobileMenuOpen}
             className="hidden portrait:flex sm:portrait:hidden absolute left-full ml-1.5 top-[44%] -translate-y-1/2 z-30 items-center justify-center bg-transparent border-0 shadow-none p-1.5 transition-transform active:scale-90 cursor-pointer select-none"
           >
             <svg
@@ -331,10 +340,23 @@ export default function App() {
       />
 
       {/* Emergency Hotlines Directory Modal */}
-      <EmergencyHotlinesModal
-        isOpen={isHotlinesModalOpen}
-        onClose={() => setIsHotlinesModalOpen(false)}
-      />
+      {isHotlinesModalOpen && (
+        <React.Suspense
+          fallback={
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 text-sm font-semibold text-white backdrop-blur-xs"
+              role="status"
+            >
+              Loading emergency hotlines…
+            </div>
+          }
+        >
+          <EmergencyHotlinesModal
+            isOpen={isHotlinesModalOpen}
+            onClose={() => setIsHotlinesModalOpen(false)}
+          />
+        </React.Suspense>
+      )}
 
       {/* Live Stream URL Link Modal */}
       <LiveStreamModal
